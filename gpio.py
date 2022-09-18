@@ -11,6 +11,14 @@ __all__ = ['initialize_gpio', 'ADC', 'Relay']
 GPIO_INITIALIZED = False
 
 
+class GPIOException(Exception):
+    pass
+
+
+class CompressorException(Exception):
+    pass
+
+
 def initialize_gpio():
     global GPIO_INITIALIZED
     GPIO.setmode(GPIO.BCM)
@@ -21,7 +29,7 @@ def initialize_gpio():
 def requires_gpio_init(func, *args, **kwargs):
     def wrapper(*args, **kwargs):
         if not GPIO_INITIALIZED:
-            raise Exception("gpio is not initialized yet")
+            raise GPIOException("gpio is not initialized yet")
         return func(*args, **kwargs)
     return wrapper
 
@@ -54,23 +62,22 @@ class Relay(object):
     @requires_gpio_init
     def turn_on(self):
         if self.on:
-            print("can't turn on relay; it is already on")
-            return
+            raise CompressorException("can't turn on relay; it is already on")
         down_time = time.time() - self.last_update
         if down_time > RELAY_MIN_OFF_TIME_SECONDS:
             self._turn_on()
         else:
-            print(f"cannot turn on relay, relay has been off for {down_time} seconds, minimum toggle time is {RELAY_MIN_OFF_TIME_SECONDS} seconds")
+            raise CompressorException(f"cannot turn on relay, relay has been off for {down_time} seconds, minimum toggle time is {RELAY_MIN_OFF_TIME_SECONDS} seconds")
 
     @requires_gpio_init
     def turn_off(self):
         if not self.on:
-            print("can't turn off relay, it is already off")
+            raise CompressorException("can't turn off relay, it is already off")
         up_time = time.time() - self.last_update
         if up_time > RELAY_MIN_ON_TIME_SECONDS:
             self._turn_off()
         else:
-            print(f"cannot turn off relay, relay has been on for {up_time} seconds, minimum toggle time is {RELAY_MIN_ON_TIME_SECONDS} seconds")
+            raise CompressorException(f"cannot turn off relay, relay has been on for {up_time} seconds, minimum toggle time is {RELAY_MIN_ON_TIME_SECONDS} seconds")
 
 
 @dataclass

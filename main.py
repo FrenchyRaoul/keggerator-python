@@ -41,10 +41,16 @@ if __name__ == '__main__':
             timenow = datetime.datetime.now()
 
 
-            if temp > target_temp_f:
-                relay.turn_on()
-            else:
-                relay.turn_off()
+            if temp > target_temp_f and not relay.on:
+                try:
+                    relay.turn_on()
+                except CompressorException:
+                    pass
+            elif temp < target_temp_f and relay.on:
+                try:
+                    relay.turn_off()
+                except CompressorException:
+                    pass
 
             print("temp is".format(temp))
 
