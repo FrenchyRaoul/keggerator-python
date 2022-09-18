@@ -2,16 +2,28 @@ from dataclasses import dataclass
 import RPi.GPIO as GPIO
 import time
 
-from config import RELAY_MIN_ON_TIME_SECONDS, RELAY_MIN_OFF_TIME_SECONDS
+from config import *
 from util import Temperature
 
 
 __all__ = ['initialize_gpio', 'ADC', 'Relay']
 
+GPIO_INITIALIZED = False
+
 
 def initialize_gpio():
+    global GPIO_INITIALIZED
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
+    GPIO_INITIALIZED = True
+
+
+def requires_gpio_init(func, *args, **kwargs):
+    def wrapper(*args, **kwargs):
+        if not GPIO_INITIALIZED:
+            raise Exception("gpio is not initialized yet")
+        return func(*args, **kwargs)
+    return wrapper
 
 
 class Relay(object):
@@ -23,10 +35,12 @@ class Relay(object):
         self.initialize()
 
 
+    @requires_gpio_init
     def initialize(self):
         GPIO.setup(self.relay_pin, GPIO.OUT)
         self.turn_off()
 
+    @requires_gpio_init
     def turn_on(self):
         if self.on:
             print("can't turn on relay; it is already on")
@@ -39,6 +53,7 @@ class Relay(object):
         else:
             print(f"cannot turn on relay, relay has been off for {down_time} seconds, minimum toggle time is {RELAY_MIN_OFF_TIME_SECONDS} seconds")
 
+    @requires_gpio_init
     def turn_off(self):
         if not self.on:
             print("can't turn off relay, it is already off")
@@ -59,6 +74,7 @@ class ADC(object):
     miso_pin: int
     cs_pin: int
 
+    @requires_gpio_init
     def __post_init__(self):
         if 0 < self.adc_number > 7:
             raise ValueError("adc number must be greater than 0, less than 7")
@@ -69,6 +85,7 @@ class ADC(object):
         GPIO.setup(self.clock_pin, GPIO.OUT)
         GPIO.setup(self.cs_pin, GPIO.OUT)
 
+    @requires_gpio_init
     def read(self) -> int:
         print("reading adc")
         GPIO.output(self.cs_pin, True)
@@ -102,6 +119,16 @@ class ADC(object):
         adcout >>= 1  # first bit is 'null' so drop it
         return adcout
 
+    @requires_gpio_init
     def read_temperature_c(self) -> Temperature:
         millivolts = self.read() * (5010.0 / 1024.0)
         return Temperature(float((millivolts - 500) / 10))
+
+
+def get_adc():
+    return ADC(adc_number, SPICLK, SPIMOSI, SPIMISO, SPICS)
+
+def get_relay():
+    return Relay(RELAY)
+
+
