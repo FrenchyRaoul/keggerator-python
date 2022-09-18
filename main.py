@@ -61,7 +61,7 @@ if __name__ == '__main__':
     finally:
         print("attempting to turn of fridge.")
         try:
-            GPIO.output(RELAY, 1)
+            relay._turn_off()
             print("relay disengage signal sent. program terminating")
         except:
             print("failed to disengage relay. program terminating")

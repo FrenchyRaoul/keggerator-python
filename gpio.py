@@ -34,11 +34,22 @@ class Relay(object):
         self.last_update = time.time()
         self.initialize()
 
-
     @requires_gpio_init
     def initialize(self):
         GPIO.setup(self.relay_pin, GPIO.OUT)
         self.turn_off()
+
+    @requires_gpio_init
+    def _turn_off(self):
+        GPIO.output(self.relay_pin, True)  # 1=off, 0=on
+        self.on = False
+        self.last_update = time.time()
+
+    @requires_gpio_init
+    def _turn_on(self):
+        GPIO.output(self.relay_pin, False)  # 1=off, 0=on
+        self.on = True
+        self.last_update = time.time()
 
     @requires_gpio_init
     def turn_on(self):
@@ -47,9 +58,7 @@ class Relay(object):
             return
         down_time = time.time() - self.last_update
         if down_time > RELAY_MIN_OFF_TIME_SECONDS:
-            GPIO.output(self.relay_pin, False)  # 1=off, 0=on
-            self.on = True
-            self.last_update = time.time()
+            self._turn_on()
         else:
             print(f"cannot turn on relay, relay has been off for {down_time} seconds, minimum toggle time is {RELAY_MIN_OFF_TIME_SECONDS} seconds")
 
@@ -59,9 +68,7 @@ class Relay(object):
             print("can't turn off relay, it is already off")
         up_time = time.time() - self.last_update
         if up_time > RELAY_MIN_ON_TIME_SECONDS:
-            GPIO.output(self.relay_pin, True)  # 1=off, 0=on
-            self.on = False
-            self.last_update = time.time()
+            self._turn_off()
         else:
             print(f"cannot turn off relay, relay has been on for {up_time} seconds, minimum toggle time is {RELAY_MIN_ON_TIME_SECONDS} seconds")
 
@@ -123,6 +130,10 @@ class ADC(object):
     def read_temperature_c(self) -> Temperature:
         millivolts = self.read() * (5010.0 / 1024.0)
         return Temperature(float((millivolts - 500) / 10))
+
+    @requires_gpio_init
+    def read_temperature_f(self) -> Temperature:
+        return self.read_temperature_c().temp_f
 
 
 def get_adc():
